@@ -23,13 +23,34 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Gradle 8.7
+      - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7'
+          gradle-version: '8.9'
 
-      - name: Build debug APK
-        run: gradle :app:assembleDebug --no-daemon
+      - name: Run JVM unit tests, Lint, and build Debug & Release APKs
+        run: |
+          set -o pipefail
+          if ! gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease :app:compileDebugAndroidTestKotlin --no-daemon > /tmp/gradle.log 2>&1; then
+            tail -n 60 /tmp/gradle.log
+            ERR_MSG=$(grep -E "e:|FAILURE:|What went wrong:|>\s|FAILED" /tmp/gradle.log | tail -n 25 | tr '\n' ' ')
+            echo "::error title=Gradle Build Failed::${ERR_MSG}"
+            exit 1
+          fi
+          tail -n 30 /tmp/gradle.log
+          TEST_SUMMARY=$(grep -E "BUILD SUCCESSFUL|tests|test" /tmp/gradle.log | tail -n 10 | tr '\n' ' ')
+          echo "::notice title=Gradle Build & Tests Passed::${TEST_SUMMARY}"
+
+      - name: Verify merged AndroidManifest privacy & security constraints
+        run: |
+          MANIFEST=$(find app/build/intermediates/merged_manifest/debug -name "AndroidManifest.xml" | head -n 1)
+          test -n "$MANIFEST" && test -f "$MANIFEST"
+          if grep -q "android.permission.INTERNET" "$MANIFEST"; then
+            echo "::error title=Manifest Check::Merged manifest contains android.permission.INTERNET!"
+            exit 1
+          fi
+          grep -q 'android:allowBackup="false"' "$MANIFEST"
+          echo "::notice title=Manifest Verified::No INTERNET permission and allowBackup=false confirmed in $MANIFEST"
 
       - name: Prepare APK file
         run: cp app/build/outputs/apk/debug/app-debug.apk red-button.apk
@@ -45,12 +66,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG=v1.0
+          NOTES="Red Button (pl.leon.redbutton) v0.1.0 — zgodny ze specyfikacją v0.1 (SPECIFICATION.md). Kotlin + Jetpack Compose + Material 3, minSdk 23, targetSdk 36, brak uprawnienia INTERNET, wyłączony backup, TEST MODE oraz obsługa oficjalnych ścieżek DevicePolicyManager."
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" red-button.apk --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "Red Button v0.1.0 (v1.0)" --notes "$NOTES"
           else
             gh release create "$TAG" red-button.apk \
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
-              --title "Red Button 1.0" \
-              --notes "Automatycznie zbudowany plik APK (wersja debug). Pobierz red-button.apk i zainstaluj na Androidzie 7.0+."
+              --title "Red Button v0.1.0 (v1.0)" \
+              --notes "$NOTES"
           fi
