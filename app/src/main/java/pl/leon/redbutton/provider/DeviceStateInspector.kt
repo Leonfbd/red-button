@@ -28,7 +28,7 @@ class AndroidDeviceStateInspector(private val context: Context) : DeviceStateIns
         val sdkInt = Build.VERSION.SDK_INT
         val warnings = mutableListOf<String>()
 
-        val hardwareIdentity = readHardwareIdentity(sdkInt)
+        val hardwareIdentity = readHardwareIdentity()
 
         val dpm = try {
             context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
@@ -61,7 +61,7 @@ class AndroidDeviceStateInspector(private val context: Context) : DeviceStateIns
             false
         }
 
-        val isOrgOwnedProfile = if (sdkInt >= Build.VERSION_CODES.R && isProfileOwner) {
+        val isOrgOwnedProfile = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && isProfileOwner) {
             try {
                 dpm?.isOrganizationOwnedDeviceWithManagedProfile == true
             } catch (e: Exception) {
@@ -72,7 +72,11 @@ class AndroidDeviceStateInspector(private val context: Context) : DeviceStateIns
             false
         }
 
-        val hasParentProfileDpm = if (isOrgOwnedProfile && hasActiveWipePolicy) {
+        val hasParentProfileDpm = if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                isOrgOwnedProfile &&
+                hasActiveWipePolicy
+        ) {
             try {
                 dpm?.getParentProfileInstance(adminComponent) != null
             } catch (e: Exception) {
@@ -91,10 +95,10 @@ class AndroidDeviceStateInspector(private val context: Context) : DeviceStateIns
             else -> ManagementRole.NONE
         }
 
-        val userQualification = readUserQualification(sdkInt, warnings)
+        val userQualification = readUserQualification(warnings)
         val lockScreenStatus = readLockScreenStatus(warnings)
         val encryptionStatus = readEncryptionStatus(dpm, warnings)
-        val hasEuiccFeature = readEuiccFeature(sdkInt, warnings)
+        val hasEuiccFeature = readEuiccFeature(warnings)
 
         return RawDeviceState(
             sdkInt = sdkInt,
@@ -110,8 +114,8 @@ class AndroidDeviceStateInspector(private val context: Context) : DeviceStateIns
         )
     }
 
-    private fun readHardwareIdentity(sdkInt: Int): HardwareIdentitySnapshot {
-        val securityPatch = if (sdkInt >= Build.VERSION_CODES.M) {
+    private fun readHardwareIdentity(): HardwareIdentitySnapshot {
+        val securityPatch = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             try {
                 Build.VERSION.SECURITY_PATCH ?: ""
             } catch (_: Exception) {
@@ -134,9 +138,9 @@ class AndroidDeviceStateInspector(private val context: Context) : DeviceStateIns
         )
     }
 
-    private fun readUserQualification(sdkInt: Int, warnings: MutableList<String>): UserQualification {
+    private fun readUserQualification(warnings: MutableList<String>): UserQualification {
         // FR-07: On API 23, system user is not treated as reliably confirmed via public read.
-        if (sdkInt <= Build.VERSION_CODES.M) {
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
             return UserQualification.UNCONFIRMED_API23_USER
         }
         return try {
@@ -186,9 +190,9 @@ class AndroidDeviceStateInspector(private val context: Context) : DeviceStateIns
         }
     }
 
-    private fun readEuiccFeature(sdkInt: Int, warnings: MutableList<String>): Boolean? {
+    private fun readEuiccFeature(warnings: MutableList<String>): Boolean? {
         // FR-08: Below API 28, eSIM feature is "unknown", not "absent".
-        if (sdkInt < Build.VERSION_CODES.P) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
             return null
         }
         return try {

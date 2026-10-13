@@ -47,6 +47,7 @@ android {
     lint {
         abortOnError true
         checkReleaseBuilds false
+        textReport true
         disable 'GradleDependency', 'NewerVersionAvailable', 'AndroidGradlePluginVersion', 'OldTargetApi', 'FullBackupContent', 'DataExtractionRules'
     }
 

@@ -33,6 +33,11 @@ jobs:
           set -o pipefail
           if ! gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease :app:compileDebugAndroidTestKotlin --no-daemon > /tmp/gradle.log 2>&1; then
             tail -n 60 /tmp/gradle.log
+            LINT_TXT=$(find app/build/reports -name "lint-results*.txt" | head -n 1)
+            if [ -n "$LINT_TXT" ] && [ -f "$LINT_TXT" ]; then
+              LINT_MSG=$(grep -E "Error:|Warning:" "$LINT_TXT" | head -n 20 | tr '\n' ' ')
+              echo "::error title=Lint Details::${LINT_MSG}"
+            fi
             ERR_MSG=$(grep -E "e:|FAILURE:|What went wrong:|>\s|FAILED" /tmp/gradle.log | tail -n 25 | tr '\n' ' ')
             echo "::error title=Gradle Build Failed::${ERR_MSG}"
             exit 1
