@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Red Button</string>
+    <string name="press_button">PRESS</string>
+    <string name="press_count">Presses: %d</string>
+    <string name="reset">Reset</string>
+</resources>
