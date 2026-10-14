@@ -373,6 +373,13 @@ private fun DeviceInspectionCard(
                 stringResource(R.string.label_hardware_fields),
                 "$knownFieldsCount / 7 (min 3)"
             )
+            StatusRow(
+                "Hardware Family",
+                "${hw.brand} / ${hw.device} / ${hw.board} / ${hw.hardware} / ${hw.product}"
+            )
+            if (hw.buildFingerprint.isNotEmpty()) {
+                StatusRow("Build Fingerprint", hw.buildFingerprint)
+            }
             StatusRow(stringResource(R.string.label_management_role), eval.managementRole.name)
             StatusRow(
                 stringResource(R.string.label_active_wipe_policy),
@@ -388,6 +395,9 @@ private fun DeviceInspectionCard(
                 levelText,
                 valueTag = "sanitization_level_value"
             )
+            if (eval.warnings.isNotEmpty()) {
+                StatusRow("Inspection Warnings", eval.warnings.joinToString(", "))
+            }
 
             Spacer(modifier = Modifier.height(4.dp))
             Text(

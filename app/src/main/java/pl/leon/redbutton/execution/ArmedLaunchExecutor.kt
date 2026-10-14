@@ -14,6 +14,7 @@ import pl.leon.redbutton.model.WipeFlags
 import pl.leon.redbutton.model.WipeOptions
 import pl.leon.redbutton.policy.DevicePolicyEvaluator
 import pl.leon.redbutton.provider.DeviceStateInspector
+import pl.leon.redbutton.provider.ExpectedExecutionSnapshot
 import pl.leon.redbutton.provider.ProviderCallResult
 import pl.leon.redbutton.provider.WipeExecutionProvider
 import pl.leon.redbutton.storage.ArmConsentResult
@@ -393,9 +394,21 @@ class ArmedLaunchExecutor(
             )
         }
 
-        // Single native DPM call — no retry, no fallback (FR-09)
+        // Single native DPM call — no retry, no fallback (FR-05, FR-07, FR-09)
+        val expectedSnapshot = ExpectedExecutionSnapshot(
+            sdkInt = record.armedSdkInt,
+            managementRole = record.armedManagementRole,
+            wipeApiPath = record.armedWipeApiPath,
+            hasActiveWipePolicy = record.armedHasActiveWipePolicy,
+            userQualification = record.armedUserQualification,
+            hardwareIdentity = record.hardwareIdentity
+        )
         val providerResult = try {
-            wipeExecutionProvider.requestWipe(finalEvaluation.wipeApiPath, finalFlags)
+            wipeExecutionProvider.requestWipe(
+                path = finalEvaluation.wipeApiPath,
+                flags = finalFlags,
+                expectedSnapshot = expectedSnapshot
+            )
         } catch (t: Throwable) {
             ProviderCallResult.FailedWithError(
                 code = "PROVIDER_UNCAUGHT_${t.javaClass.simpleName}",

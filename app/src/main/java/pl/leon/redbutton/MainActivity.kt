@@ -17,6 +17,7 @@ import pl.leon.redbutton.storage.RedButtonStorage
 import pl.leon.redbutton.storage.SharedPreferencesStorageBackend
 import pl.leon.redbutton.ui.RedButtonApp
 import pl.leon.redbutton.ui.RedButtonSessionController
+import pl.leon.redbutton.ui.SavedSessionState
 
 class RedButtonViewModel(
     val controller: RedButtonSessionController
@@ -27,10 +28,14 @@ class RedButtonViewModelFactory(
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        val customFactory = testControllerFactoryOverride
+        if (customFactory != null) {
+            return RedButtonViewModel(customFactory(appContext)) as T
+        }
         val storage = RedButtonStorage(SharedPreferencesStorageBackend(appContext))
         val inspector = AndroidDeviceStateInspector(appContext)
         val evaluator = DevicePolicyEvaluator()
-        val wipeProvider = AndroidDpmWipeExecutionProvider(appContext)
+        val wipeProvider = AndroidDpmWipeExecutionProvider(appContext, inspector, evaluator)
         val executor = ArmedLaunchExecutor(
             storage = storage,
             inspector = inspector,
@@ -42,6 +47,11 @@ class RedButtonViewModelFactory(
             storage = storage
         )
         return RedButtonViewModel(controller) as T
+    }
+
+    companion object {
+        @Volatile
+        var testControllerFactoryOverride: ((android.content.Context) -> RedButtonSessionController)? = null
     }
 }
 
@@ -67,9 +77,18 @@ class MainActivity : ComponentActivity() {
             RedButtonViewModelFactory(applicationContext)
         )[RedButtonViewModel::class.java]
 
-        // Section 9 & 10: Safe across Activity recreations (e.g., screen rotation).
-        // Evaluates launch and consumes armed consent at most once per ViewModel session.
-        viewModel.controller.onLaunchOrRecreate()
+        val savedSession = savedInstanceState?.getString(KEY_STAGE_NAME)?.let { stageName ->
+            SavedSessionState(
+                stageName = stageName,
+                armedExecutionModeName = savedInstanceState.getString(KEY_ARMED_MODE_NAME),
+                commonConsentChecked = savedInstanceState.getBoolean(KEY_COMMON_CONSENT, false),
+                realModeConsentChecked = savedInstanceState.getBoolean(KEY_REAL_CONSENT, false)
+            )
+        }
+
+        // Section 9 & 10: Safe across Activity recreations (e.g., screen rotation or process death).
+        // Evaluates launch and consumes armed consent at most once per session.
+        viewModel.controller.onLaunchOrRecreate(savedSession)
 
         setContent {
             RedButtonApp(
@@ -77,6 +96,19 @@ class MainActivity : ComponentActivity() {
                 onRequestDeviceAdmin = ::launchDeviceAdminActivation,
                 onCloseApplication = { finish() }
             )
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        if (::viewModel.isInitialized) {
+            val snapshot = viewModel.controller.snapshotSessionState()
+            outState.putString(KEY_STAGE_NAME, snapshot.stageName)
+            if (snapshot.armedExecutionModeName != null) {
+                outState.putString(KEY_ARMED_MODE_NAME, snapshot.armedExecutionModeName)
+            }
+            outState.putBoolean(KEY_COMMON_CONSENT, snapshot.commonConsentChecked)
+            outState.putBoolean(KEY_REAL_CONSENT, snapshot.realModeConsentChecked)
         }
     }
 
@@ -101,5 +133,12 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {
             // Fail gracefully if the OEM/system does not expose the Device Admin screen.
         }
+    }
+
+    companion object {
+        private const val KEY_STAGE_NAME = "rb_stage_name"
+        private const val KEY_ARMED_MODE_NAME = "rb_armed_mode_name"
+        private const val KEY_COMMON_CONSENT = "rb_common_consent"
+        private const val KEY_REAL_CONSENT = "rb_real_consent"
     }
 }

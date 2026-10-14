@@ -767,12 +767,60 @@ class RedButtonUnitTest {
         secondLaunchController.onLaunchOrRecreate()
         secondLaunchController.onLaunchOrRecreate()
         assertEquals(1, fakeProvider.callCount)
+        assertNotNull(fakeProvider.calls.first().expectedSnapshot)
+        assertEquals(34, fakeProvider.calls.first().expectedSnapshot?.sdkInt)
         assertEquals(ScreenStage.EXECUTION_OUTCOME, secondLaunchController.uiState.value.stage)
 
-        // Subsequent 3rd launch opens unarmed inspection
+        // Simulate process-death Activity recreation on EXECUTION_OUTCOME (new ViewModel + savedState)
+        val savedOutcomeState = secondLaunchController.snapshotSessionState()
+        val restoredAfterProcessDeathController = RedButtonSessionController(executor, storage)
+        restoredAfterProcessDeathController.onLaunchOrRecreate(savedOutcomeState)
+        assertEquals(ScreenStage.EXECUTION_OUTCOME, restoredAfterProcessDeathController.uiState.value.stage)
+        assertEquals(
+            AttemptOutcome.WIPE_REQUESTED,
+            restoredAfterProcessDeathController.uiState.value.executionSummary?.outcome
+        )
+        assertEquals("Process-death restore must never re-execute provider", 1, fakeProvider.callCount)
+
+        // Subsequent 3rd fresh launch opens unarmed inspection
         val thirdLaunchController = RedButtonSessionController(executor, storage)
         thirdLaunchController.onLaunchOrRecreate()
         assertEquals(ScreenStage.INSPECTION_AND_CONSENT, thirdLaunchController.uiState.value.stage)
+        assertEquals(1, fakeProvider.callCount)
+    }
+
+    @Test
+    fun processDeathDuringArmedClosing_doesNotConsumeOrExecuteArmedRecord() {
+        val backend = InMemoryStorageBackend()
+        val storage = RedButtonStorage(backend)
+        val fakeProvider = FakeWipeExecutionProvider(ProviderCallResult.Accepted)
+        val executor = ArmedLaunchExecutor(
+            storage = storage,
+            inspector = object : DeviceStateInspector {
+                override fun inspectCurrentState() = qualifiedRawState(sdkInt = 34)
+            },
+            evaluator = evaluator,
+            wipeExecutionProvider = fakeProvider
+        )
+
+        val firstLaunchController = RedButtonSessionController(executor, storage)
+        firstLaunchController.onLaunchOrRecreate()
+        firstLaunchController.setCommonConsentChecked(true)
+        firstLaunchController.setRealModeConsentChecked(true)
+        assertTrue(firstLaunchController.armAction())
+        assertEquals(ScreenStage.ARMED_CLOSING, firstLaunchController.uiState.value.stage)
+
+        // Simulate recreation with savedState while still in ARMED_CLOSING on Launch 1
+        val savedArmedState = firstLaunchController.snapshotSessionState()
+        val recreatedOnLaunch1 = RedButtonSessionController(executor, storage)
+        recreatedOnLaunch1.onLaunchOrRecreate(savedArmedState)
+        assertEquals(ScreenStage.ARMED_CLOSING, recreatedOnLaunch1.uiState.value.stage)
+        assertEquals("Must not execute during Launch 1 recreation", 0, fakeProvider.callCount)
+
+        // Now open fresh Launch 2 (savedState = null) -> consumes and executes once
+        val secondLaunch = RedButtonSessionController(executor, storage)
+        secondLaunch.onLaunchOrRecreate(null)
+        assertEquals(ScreenStage.EXECUTION_OUTCOME, secondLaunch.uiState.value.stage)
         assertEquals(1, fakeProvider.callCount)
     }
 }
