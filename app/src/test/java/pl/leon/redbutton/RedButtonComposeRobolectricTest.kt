@@ -9,8 +9,12 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.test.core.app.ActivityScenario
+import androidx.test.core.app.ApplicationProvider
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -20,14 +24,22 @@ import org.robolectric.annotation.Config
 import pl.leon.redbutton.execution.ArmedLaunchExecutor
 import pl.leon.redbutton.model.AttemptOutcome
 import pl.leon.redbutton.model.EncryptionStatus
+import pl.leon.redbutton.model.ExecutionMode
 import pl.leon.redbutton.model.HardwareIdentitySnapshot
 import pl.leon.redbutton.model.LockScreenStatus
 import pl.leon.redbutton.model.ManagementRole
 import pl.leon.redbutton.model.RawDeviceState
 import pl.leon.redbutton.model.UserQualification
+import pl.leon.redbutton.model.WipeApiPath
+import pl.leon.redbutton.model.WipeFlags
+import pl.leon.redbutton.model.WipeOptions
 import pl.leon.redbutton.policy.DevicePolicyEvaluator
+import pl.leon.redbutton.provider.AndroidDeviceStateInspector
+import pl.leon.redbutton.provider.AndroidDpmWipeExecutionProvider
 import pl.leon.redbutton.provider.DeviceStateInspector
+import pl.leon.redbutton.provider.ExpectedExecutionSnapshot
 import pl.leon.redbutton.provider.FakeWipeExecutionProvider
+import pl.leon.redbutton.provider.ProviderCallResult
 import pl.leon.redbutton.storage.InMemoryStorageBackend
 import pl.leon.redbutton.storage.RedButtonStorage
 import pl.leon.redbutton.ui.RedButtonApp
@@ -270,6 +282,11 @@ class RedButtonComposeRobolectricTest {
         composeTestRule.onNodeWithTag("arm_error_uncertain_banner").performScrollTo().assertIsDisplayed()
     }
 
+    @After
+    fun tearDown() {
+        RedButtonViewModelFactory.testControllerFactoryOverride = null
+    }
+
     @Test
     fun composeUi_euiccCheckboxDisabledOnApi33_andEnabledOnQualifiedApi34() {
         val api33State = sampleRawState(sdkInt = 33, role = ManagementRole.DEVICE_OWNER, hasEuiccFeature = true)
@@ -286,5 +303,87 @@ class RedButtonComposeRobolectricTest {
         }
 
         composeTestRule.onNodeWithTag("checkbox_wipe_euicc").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun mainActivity_recreateOnOutcomeScreen_doesNotReExecuteProvider() {
+        val backend = InMemoryStorageBackend()
+        val (storage, executor, fakeProvider) = buildComponents(backend = backend)
+
+        // Arm REAL MODE prior to launching MainActivity (simulating armed state from Launch 1)
+        executor.armForNextLaunch(
+            executionMode = ExecutionMode.REAL_MODE,
+            options = WipeOptions(wipeExternalStorage = true, wipeEuicc = false),
+            commonConsentChecked = true,
+            realModeConsentChecked = true
+        )
+        assertEquals(0, fakeProvider.callCount)
+
+        RedButtonViewModelFactory.testControllerFactoryOverride = {
+            RedButtonSessionController(executor, storage)
+        }
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            assertEquals("Launch 2 must execute provider once", 1, fakeProvider.callCount)
+
+            // Recreate MainActivity (configuration change / screen rotation)
+            scenario.recreate()
+            assertEquals("MainActivity.recreate() must NOT re-execute provider", 1, fakeProvider.callCount)
+
+            scenario.onActivity { activity ->
+                assertNotNull(activity)
+            }
+        }
+    }
+
+    @Test
+    fun androidInspectorAndProvider_defensiveFailClosedGuards() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+
+        // 1. AndroidDeviceStateInspector safely inspects standard Robolectric environment
+        val inspector = AndroidDeviceStateInspector(context)
+        val raw = inspector.inspectCurrentState()
+        assertEquals(34, raw.sdkInt)
+        assertEquals(ManagementRole.NONE, raw.managementRole)
+        assertFalse(raw.hasActiveWipePolicy)
+
+        // 2. AndroidDpmWipeExecutionProvider defensive fail-closed guards (never reaches DPM)
+        val provider = AndroidDpmWipeExecutionProvider(
+            context = context,
+            inspector = object : DeviceStateInspector {
+                override fun inspectCurrentState() = sampleRawState(sdkInt = 34)
+            },
+            evaluator = DevicePolicyEvaluator()
+        )
+
+        // Path NONE -> Refused
+        val noneRes = provider.requestWipe(WipeApiPath.NONE, 0)
+        assertTrue(noneRes is ProviderCallResult.Refused)
+        assertEquals("UNSUPPORTED_PATH", (noneRes as ProviderCallResult.Refused).code)
+
+        // Forbidden flags (FRP / SILENT) -> Refused
+        val frpRes = provider.requestWipe(
+            WipeApiPath.MODERN_WIPE_DEVICE,
+            WipeFlags.WIPE_RESET_PROTECTION_DATA
+        )
+        assertTrue(frpRes is ProviderCallResult.Refused)
+        assertEquals("FORBIDDEN_FLAGS", (frpRes as ProviderCallResult.Refused).code)
+
+        // Mismatched expectedSnapshot (role changed) -> Refused before touching DPM
+        val mismatchSnapshot = ExpectedExecutionSnapshot(
+            sdkInt = 34,
+            managementRole = ManagementRole.ORG_OWNED_PROFILE_OWNER,
+            wipeApiPath = WipeApiPath.MODERN_WIPE_DEVICE,
+            hasActiveWipePolicy = true,
+            userQualification = UserQualification.SYSTEM_OR_MAIN_USER,
+            hardwareIdentity = sampleRawState().hardwareIdentity
+        )
+        val mismatchRes = provider.requestWipe(
+            WipeApiPath.MODERN_WIPE_DEVICE,
+            WipeFlags.WIPE_EXTERNAL_STORAGE,
+            mismatchSnapshot
+        )
+        assertTrue(mismatchRes is ProviderCallResult.Refused)
+        assertEquals("PROVIDER_CONTINUITY_MISMATCH", (mismatchRes as ProviderCallResult.Refused).code)
     }
 }
