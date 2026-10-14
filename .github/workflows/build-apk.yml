@@ -18,20 +18,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Gradle 8.9
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
 
-      - name: Run JVM unit tests, Lint, and build Debug & Release APKs
+      - name: Run JVM & Robolectric Compose tests, Lint, and build Debug & Release APKs via Gradle Wrapper
         run: |
+          chmod +x ./gradlew
           set -o pipefail
-          if ! gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease :app:compileDebugAndroidTestKotlin --no-daemon > /tmp/gradle.log 2>&1; then
+          if ! ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease :app:compileDebugAndroidTestKotlin --no-daemon > /tmp/gradle.log 2>&1; then
             tail -n 60 /tmp/gradle.log
             LINT_TXT=$(find app/build/reports -name "lint-results*.txt" | head -n 1)
             if [ -n "$LINT_TXT" ] && [ -f "$LINT_TXT" ]; then
@@ -45,7 +44,7 @@ jobs:
           tail -n 30 /tmp/gradle.log
           PASSED_TESTS=$(grep -c "PASSED" /tmp/gradle.log || true)
           TEST_SUMMARY=$(grep -E "BUILD SUCCESSFUL" /tmp/gradle.log | tail -n 3 | tr '\n' ' ')
-          echo "::notice title=Gradle Build & Tests Passed::Passed test cases: ${PASSED_TESTS} | ${TEST_SUMMARY}"
+          echo "::notice title=Gradle Wrapper Build & Tests Passed::Passed test cases: ${PASSED_TESTS} | ${TEST_SUMMARY}"
 
       - name: Verify merged AndroidManifest privacy & security constraints
         run: |

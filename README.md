@@ -8,6 +8,7 @@ Dodatkowa dokumentacja projektu:
 - **[PRIVACY_POLICY.md](PRIVACY_POLICY.md)** — Polityka prywatności (działanie 100% offline, brak `INTERNET`, wyłączony backup, zakres danych lokalnych).
 - **[PRODUCT_CARD.md](PRODUCT_CARD.md)** — Uczciwa karta produktu, opis do sklepu/katalogu MDM (PL/EN) oraz procedura zgłoszeń i wsparcia.
 - **[TESTING_AND_RELEASE.md](TESTING_AND_RELEASE.md)** — Macierz testowa API 23–36, testy ról `DevicePolicyManager` przez ADB oraz konfiguracja podpisu wydania (`keystore.properties.example`).
+- **[TEST_MATRIX_REPORT.md](TEST_MATRIX_REPORT.md)** — Raport z automatycznej weryfikacji macierzy API 22–36, ról zarządzania, ciągłości tożsamości i testów UI Compose/Robolectric.
 
 ---
 
@@ -64,7 +65,7 @@ Strona wydania: https://github.com/Leonfbd/red-button/releases/tag/v1.0
 Wymagania: JDK 17 oraz Android SDK.
 
 ```bash
-gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease
 ```
 
 Wynikowy plik debug APK: `app/build/outputs/apk/debug/app-debug.apk`.

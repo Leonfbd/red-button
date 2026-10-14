@@ -257,11 +257,13 @@ Model sprzedaży i dystrybucji nie jest jeszcze określony. Przed publikacją tr
 - Ścieżki kodu: `wipeData()` API 23–33 oraz `wipeDevice()` API 34+ z kontrolą ról
 - Język krytycznych komunikatów: polski i angielski
 - `TEST MODE` domyślnie wyłączony (z bezpiecznym fallbackiem do `TEST MODE` włączonego przy błędzie odczytu pamięci)
-- Konfiguracja podpisu wydania (`signingConfigs.release`) przez `keystore.properties` lub zmienne środowiskowe `RED_BUTTON_KEYSTORE_*` (szablon: [`keystore.properties.example`](keystore.properties.example))
+- W repozytorium znajduje się kompletny **Gradle Wrapper (Gradle 8.9)** (`./gradlew`, `gradlew.bat`, `gradle/wrapper/*`).
+- Konfiguracja podpisu wydania (`signingConfigs.release`) przez `keystore.properties` lub zmienne środowiskowe `RED_BUTTON_KEYSTORE_*` (szablon: [`keystore.properties.example`](keystore.properties.example)).
 - Dokumentacja towarzysząca:
   - [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) — Polityka prywatności zgodna z Sekcją 8
   - [`PRODUCT_CARD.md`](PRODUCT_CARD.md) — Uczciwa karta produktu, opis do katalogu/sklepu oraz procedura zgłoszeń (Sekcja 10–12)
   - [`TESTING_AND_RELEASE.md`](TESTING_AND_RELEASE.md) — Instrukcja testów macierzy API, ról zarządzania oraz procedury wydania
-- Kompilacja (`assembleDebug`, `assembleRelease`), analiza `lintDebug`, testy jednostkowe JVM i testy Compose/Robolectric (`testDebugUnitTest`) oraz kontrola zmergowanego manifestu (`brak INTERNET`, `allowBackup="false"`) są automatycznie weryfikowane w GitHub Actions (`.github/workflows/build-apk.yml`).
+  - [`TEST_MATRIX_REPORT.md`](TEST_MATRIX_REPORT.md) — Raport weryfikacji macierzy API 22–36, ról DPM, ciągłości tożsamości i testów UI Compose/Robolectric
+- Kompilacja (`assembleDebug`, `assembleRelease`), analiza `lintDebug`, testy jednostkowe JVM i testy Compose/Robolectric (`testDebugUnitTest`) oraz kontrola zmergowanego manifestu (`brak INTERNET`, `allowBackup="false"`) są automatycznie weryfikowane przez `./gradlew` w GitHub Actions (`.github/workflows/build-apk.yml`).
 
 Nie wolno utożsamiać tej konfiguracji kodu z gwarancją działania na każdym urządzeniu fizycznym ani z certyfikowanym wymazaniem nośników.
