@@ -43,8 +43,9 @@ jobs:
             exit 1
           fi
           tail -n 30 /tmp/gradle.log
-          TEST_SUMMARY=$(grep -E "BUILD SUCCESSFUL|tests|test" /tmp/gradle.log | tail -n 10 | tr '\n' ' ')
-          echo "::notice title=Gradle Build & Tests Passed::${TEST_SUMMARY}"
+          PASSED_TESTS=$(grep -c "PASSED" /tmp/gradle.log || true)
+          TEST_SUMMARY=$(grep -E "BUILD SUCCESSFUL" /tmp/gradle.log | tail -n 3 | tr '\n' ' ')
+          echo "::notice title=Gradle Build & Tests Passed::Passed test cases: ${PASSED_TESTS} | ${TEST_SUMMARY}"
 
       - name: Verify merged AndroidManifest privacy & security constraints
         run: |

@@ -4,6 +4,11 @@
 
 Pełna specyfikacja produktowa i techniczna znajduje się w pliku **[SPECIFICATION.md](SPECIFICATION.md)**.
 
+Dodatkowa dokumentacja projektu:
+- **[PRIVACY_POLICY.md](PRIVACY_POLICY.md)** — Polityka prywatności (działanie 100% offline, brak `INTERNET`, wyłączony backup, zakres danych lokalnych).
+- **[PRODUCT_CARD.md](PRODUCT_CARD.md)** — Uczciwa karta produktu, opis do sklepu/katalogu MDM (PL/EN) oraz procedura zgłoszeń i wsparcia.
+- **[TESTING_AND_RELEASE.md](TESTING_AND_RELEASE.md)** — Macierz testowa API 23–36, testy ról `DevicePolicyManager` przez ADB oraz konfiguracja podpisu wydania (`keystore.properties.example`).
+
 ---
 
 ## Opis dla osób nietechnicznych

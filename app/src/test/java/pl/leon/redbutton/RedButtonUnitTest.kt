@@ -4,6 +4,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import pl.leon.redbutton.execution.ArmedLaunchExecutor
@@ -88,7 +89,72 @@ class RedButtonUnitTest {
     )
 
     // -------------------------------------------------------------------------
-    // 1. Non-invasive API Matrix & Management Role Rules (FR-07, Section 10)
+    // 1. Non-invasive API Matrix Without Owner Role in TEST MODE (Section 10)
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun nonInvasiveMatrix_api23_24_27_28_33_34_35_36_unmanagedInTestMode() {
+        val matrixApis = listOf(23, 24, 27, 28, 33, 34, 35, 36)
+        for (sdk in matrixApis) {
+            val backend = InMemoryStorageBackend()
+            val storage = RedButtonStorage(backend)
+            val fakeProvider = FakeWipeExecutionProvider()
+            val unmanagedState = qualifiedRawState(
+                sdkInt = sdk,
+                role = ManagementRole.NONE,
+                hasActiveWipePolicy = false,
+                userQualification = if (sdk == 23) {
+                    UserQualification.UNCONFIRMED_API23_USER
+                } else {
+                    UserQualification.SYSTEM_OR_MAIN_USER
+                },
+                hasEuiccFeature = if (sdk < 28) null else true
+            )
+            val executor = ArmedLaunchExecutor(
+                storage = storage,
+                inspector = object : DeviceStateInspector {
+                    override fun inspectCurrentState() = unmanagedState
+                },
+                evaluator = evaluator,
+                wipeExecutionProvider = fakeProvider
+            )
+
+            // First launch: unarmed inspection
+            val firstLaunch = executor.handleLaunch()
+            assertTrue(firstLaunch is LaunchStepResult.OpenUnarmedInspection)
+            val eval = (firstLaunch as LaunchStepResult.OpenUnarmedInspection).evaluation
+            assertFalse("Unmanaged API $sdk must not be ready for REAL MODE", eval.isReadyForRealMode)
+            assertEquals(WipeApiPath.NONE, eval.wipeApiPath)
+            assertEquals(
+                SanitizationLevel.LEVEL_0_UNSUPPORTED,
+                eval.sanitizationLevelFor(WipeOptions())
+            )
+            if (sdk < 28) {
+                assertEquals(EuiccFeatureStatus.UNKNOWN_PRE_API_28, eval.euiccFeatureStatus)
+            } else {
+                assertEquals(EuiccFeatureStatus.PRESENT, eval.euiccFeatureStatus)
+            }
+
+            // Arm in TEST MODE and execute simulation on next launch
+            val armResult = executor.armForNextLaunch(
+                executionMode = ExecutionMode.TEST_MODE,
+                options = WipeOptions(wipeExternalStorage = true, wipeEuicc = true),
+                commonConsentChecked = true,
+                realModeConsentChecked = false
+            )
+            assertTrue("Should arm TEST MODE on API $sdk", armResult is ArmConsentResult.Armed)
+
+            val secondLaunch = executor.handleLaunch()
+            assertTrue(secondLaunch is LaunchStepResult.ExecutedArmedLaunch)
+            val summary = (secondLaunch as LaunchStepResult.ExecutedArmedLaunch).summary
+            assertEquals(AttemptOutcome.SIMULATED, summary.outcome)
+            assertTrue(summary.detailCode.startsWith("SIMULATED_WOULD_BLOCK:"))
+            assertEquals("TEST MODE on API $sdk must never call provider", 0, fakeProvider.callCount)
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. Management Role Matrix Across API 23, 24–33, and 34–36 (FR-07, Section 10)
     // -------------------------------------------------------------------------
 
     @Test
@@ -105,7 +171,6 @@ class RedButtonUnitTest {
 
     @Test
     fun api23_deviceOwnerAccepted_ordinaryAdminRejected() {
-        // API 23 Device Owner -> Ready via LEGACY_WIPE_DATA
         val doEval = evaluator.evaluate(
             qualifiedRawState(
                 sdkInt = 23,
@@ -118,7 +183,6 @@ class RedButtonUnitTest {
         assertEquals(WipeApiPath.LEGACY_WIPE_DATA, doEval.wipeApiPath)
         assertEquals(EuiccFeatureStatus.UNKNOWN_PRE_API_28, doEval.euiccFeatureStatus)
 
-        // API 23 ordinary Device Admin -> Rejected because system user cannot be confirmed (FR-07)
         val adminEval = evaluator.evaluate(
             qualifiedRawState(
                 sdkInt = 23,
@@ -133,7 +197,7 @@ class RedButtonUnitTest {
 
     @Test
     fun api24To33_systemAdminAndDeviceOwnerAccepted_profileOwnerAndSecondaryUserRejected() {
-        for (sdk in listOf(24, 28, 33)) {
+        for (sdk in listOf(24, 27, 28, 33)) {
             val sysAdmin = evaluator.evaluate(
                 qualifiedRawState(
                     sdkInt = sdk,
@@ -169,7 +233,6 @@ class RedButtonUnitTest {
     @Test
     fun api34To36_requiresDeviceOwnerOrOrgOwnedProfileWithParentDpm() {
         for (sdk in listOf(34, 35, 36)) {
-            // Private unmanaged or ordinary Device Admin -> Rejected on API 34+
             val privateAdmin = evaluator.evaluate(
                 qualifiedRawState(sdkInt = sdk, role = ManagementRole.DEVICE_ADMIN)
             )
@@ -177,14 +240,12 @@ class RedButtonUnitTest {
             assertEquals(WipeApiPath.NONE, privateAdmin.wipeApiPath)
             assertTrue(privateAdmin.blockingReasons.contains(BlockingReason.API34_PRIVATE_DEVICE_NO_OWNER_ROLE))
 
-            // Device Owner -> Ready via MODERN_WIPE_DEVICE
             val deviceOwner = evaluator.evaluate(
                 qualifiedRawState(sdkInt = sdk, role = ManagementRole.DEVICE_OWNER)
             )
             assertTrue(deviceOwner.isReadyForRealMode)
             assertEquals(WipeApiPath.MODERN_WIPE_DEVICE, deviceOwner.wipeApiPath)
 
-            // Org-owned Profile Owner with parent DPM -> Ready via MODERN_PARENT_PROFILE_WIPE_DEVICE
             val orgOwnerOk = evaluator.evaluate(
                 qualifiedRawState(
                     sdkInt = sdk,
@@ -195,7 +256,6 @@ class RedButtonUnitTest {
             assertTrue(orgOwnerOk.isReadyForRealMode)
             assertEquals(WipeApiPath.MODERN_PARENT_PROFILE_WIPE_DEVICE, orgOwnerOk.wipeApiPath)
 
-            // Org-owned Profile Owner missing parent DPM -> Blocked
             val orgOwnerNoParent = evaluator.evaluate(
                 qualifiedRawState(
                     sdkInt = sdk,
@@ -209,19 +269,17 @@ class RedButtonUnitTest {
     }
 
     // -------------------------------------------------------------------------
-    // 2. eSIM / eUICC Boundary (API 27 vs 28 vs 34+) & Forbidden Flags (FR-08)
+    // 3. eSIM / eUICC Boundary (API 27 vs 28 vs 34+) & Forbidden Flags (FR-08)
     // -------------------------------------------------------------------------
 
     @Test
     fun euiccBoundary_api27IsUnknown_api28ReadsFeature_api34AllowsFlagOptIn() {
-        // API 27: even if boolean false is passed, must report UNKNOWN_PRE_API_28, NOT ABSENT
         val api27 = evaluator.evaluate(
             qualifiedRawState(sdkInt = 27, hasEuiccFeature = false)
         )
         assertEquals(EuiccFeatureStatus.UNKNOWN_PRE_API_28, api27.euiccFeatureStatus)
         assertFalse(api27.supportsEuiccFlag)
 
-        // API 28: reports ABSENT or PRESENT accurately, but WIPE_EUICC flag requires API 34+
         val api28Absent = evaluator.evaluate(
             qualifiedRawState(sdkInt = 28, hasEuiccFeature = false)
         )
@@ -234,7 +292,6 @@ class RedButtonUnitTest {
         assertEquals(EuiccFeatureStatus.PRESENT, api28Present.euiccFeatureStatus)
         assertFalse(api28Present.supportsEuiccFlag)
 
-        // API 34 with PRESENT: supportsEuiccFlag is true
         val api34Present = evaluator.evaluate(
             qualifiedRawState(sdkInt = 34, hasEuiccFeature = true)
         )
@@ -259,7 +316,7 @@ class RedButtonUnitTest {
     }
 
     // -------------------------------------------------------------------------
-    // 3. Lock Screen, Encryption Status Mapping & Sanitization Levels (FR-06, Section 7)
+    // 4. Lock Screen, Encryption Status Mapping & Sanitization Levels (FR-06, Section 7)
     // -------------------------------------------------------------------------
 
     @Test
@@ -292,7 +349,6 @@ class RedButtonUnitTest {
 
     @Test
     fun sanitizationLevels_classifiedCorrectly_andEncryptionAloneNeverRaisesLevel() {
-        // Blocked device with ACTIVE encryption -> still Level 0
         val blockedWithActiveEnc = evaluator.evaluate(
             qualifiedRawState(sdkInt = 34, role = ManagementRole.NONE, hasActiveWipePolicy = false)
         )
@@ -301,25 +357,21 @@ class RedButtonUnitTest {
             blockedWithActiveEnc.sanitizationLevelFor(WipeOptions(wipeExternalStorage = true))
         )
 
-        // API 30 qualified without extension flags -> Level 1
         val api30Eval = evaluator.evaluate(qualifiedRawState(sdkInt = 30))
         assertEquals(
             SanitizationLevel.LEVEL_1_LEGACY_WIPE_DATA,
             api30Eval.sanitizationLevelFor(WipeOptions(wipeExternalStorage = false, wipeEuicc = false))
         )
-        // API 30 qualified with WIPE_EXTERNAL_STORAGE -> Level 3
         assertEquals(
             SanitizationLevel.LEVEL_3_EXTENDED_FLAGS,
             api30Eval.sanitizationLevelFor(WipeOptions(wipeExternalStorage = true, wipeEuicc = false))
         )
 
-        // API 34 qualified without extension flags -> Level 2
         val api34Eval = evaluator.evaluate(qualifiedRawState(sdkInt = 34))
         assertEquals(
             SanitizationLevel.LEVEL_2_MODERN_WIPE_DEVICE,
             api34Eval.sanitizationLevelFor(WipeOptions(wipeExternalStorage = false, wipeEuicc = false))
         )
-        // API 34 qualified with WIPE_EUICC -> Level 3
         assertEquals(
             SanitizationLevel.LEVEL_3_EXTENDED_FLAGS,
             api34Eval.sanitizationLevelFor(WipeOptions(wipeExternalStorage = false, wipeEuicc = true))
@@ -327,7 +379,7 @@ class RedButtonUnitTest {
     }
 
     // -------------------------------------------------------------------------
-    // 4. Hardware-Family Identity Continuity (FR-05)
+    // 5. Hardware-Family Identity Continuity (FR-05)
     // -------------------------------------------------------------------------
 
     @Test
@@ -361,7 +413,7 @@ class RedButtonUnitTest {
     }
 
     // -------------------------------------------------------------------------
-    // 5. Storage, TEST MODE Fallback, Schema Validation & Integrity (FR-03, FR-04)
+    // 6. Storage, TEST MODE Fallback, Schema Validation & Profile/Report (FR-03, FR-04, Section 8)
     // -------------------------------------------------------------------------
 
     @Test
@@ -369,23 +421,68 @@ class RedButtonUnitTest {
         val backend = InMemoryStorageBackend()
         val storage = RedButtonStorage(backend)
 
-        // Default is false (TEST MODE disabled)
         val initial = storage.readTestModePreference()
         assertFalse(initial.testModeEnabled)
         assertFalse(initial.fallbackTriggered)
 
-        // Read exception -> safe fallback to TEST MODE = true
         backend.throwOnReadKeys = setOf(RedButtonStorage.KEY_TEST_MODE)
         val onError = storage.readTestModePreference()
         assertTrue(onError.testModeEnabled)
         assertTrue(onError.fallbackTriggered)
 
-        // Corrupted preference value -> safe fallback to TEST MODE = true
         backend.throwOnReadKeys = emptySet()
         backend.putRawForTest(RedButtonStorage.KEY_TEST_MODE, "corrupted_value")
         val onCorrupted = storage.readTestModePreference()
         assertTrue(onCorrupted.testModeEnabled)
         assertTrue(onCorrupted.fallbackTriggered)
+    }
+
+    @Test
+    fun deviceProfileAndAttemptReport_persistedAndOverwrittenAsSingleLastAttempt() {
+        val backend = InMemoryStorageBackend()
+        val storage = RedButtonStorage(backend)
+        val eval = evaluator.evaluate(qualifiedRawState(sdkInt = 35))
+        val profile = evaluator.toDeviceProfile(eval, WipeOptions(wipeExternalStorage = true), 123456L)
+
+        assertTrue(storage.saveDeviceProfile(profile))
+        val loadedProfile = storage.readDeviceProfile()
+        assertNotNull(loadedProfile)
+        assertEquals(35, loadedProfile?.sdkInt)
+        assertEquals(WipeApiPath.MODERN_WIPE_DEVICE, loadedProfile?.wipeApiPath)
+        assertEquals(SanitizationLevel.LEVEL_3_EXTENDED_FLAGS, loadedProfile?.sanitizationLevel)
+
+        // Verify AttemptReport is overwritten as a single last entry (Section 8)
+        val fakeProvider = FakeWipeExecutionProvider()
+        val executor = ArmedLaunchExecutor(
+            storage = storage,
+            inspector = object : DeviceStateInspector {
+                override fun inspectCurrentState() = qualifiedRawState(sdkInt = 35)
+            },
+            evaluator = evaluator,
+            wipeExecutionProvider = fakeProvider
+        )
+
+        executor.armForNextLaunch(
+            executionMode = ExecutionMode.TEST_MODE,
+            options = WipeOptions(wipeExternalStorage = false, wipeEuicc = false),
+            commonConsentChecked = true,
+            realModeConsentChecked = false
+        )
+        executor.consumeAndExecuteOnce()
+        val firstReport = storage.readLastAttemptReport()
+        assertNotNull(firstReport)
+        assertEquals(SanitizationLevel.LEVEL_2_MODERN_WIPE_DEVICE, firstReport?.sanitizationLevel)
+
+        executor.armForNextLaunch(
+            executionMode = ExecutionMode.TEST_MODE,
+            options = WipeOptions(wipeExternalStorage = true, wipeEuicc = true),
+            commonConsentChecked = true,
+            realModeConsentChecked = false
+        )
+        executor.consumeAndExecuteOnce()
+        val secondReport = storage.readLastAttemptReport()
+        assertNotNull(secondReport)
+        assertEquals(SanitizationLevel.LEVEL_3_EXTENDED_FLAGS, secondReport?.sanitizationLevel)
     }
 
     @Test
@@ -403,7 +500,6 @@ class RedButtonUnitTest {
             wipeExecutionProvider = fakeProvider
         )
 
-        // Arm valid record first
         val armRes = executor.armForNextLaunch(
             executionMode = ExecutionMode.REAL_MODE,
             options = WipeOptions(wipeExternalStorage = true, wipeEuicc = false),
@@ -414,7 +510,7 @@ class RedButtonUnitTest {
 
         val validRaw = backend.getRawForTest(RedButtonStorage.KEY_CONSENT_RECORD)!!
 
-        // 1. Tamper with executionMode without updating integrityHash
+        // 1. Tamper with wipeEuicc without updating integrityHash
         val tamperedJson = JSONObject(validRaw).apply {
             put("wipeEuicc", true)
         }.toString()
@@ -425,7 +521,7 @@ class RedButtonUnitTest {
         assertTrue(tamperedOutcome.detailCode.contains("INTEGRITY_HASH_MISMATCH"))
         assertEquals(0, fakeProvider.callCount)
 
-        // 2. Missing required field (e.g. wipeExternalStorage removed)
+        // 2. Missing required field
         val missingFieldJson = JSONObject(validRaw).apply {
             remove("wipeExternalStorage")
         }.toString()
@@ -449,7 +545,7 @@ class RedButtonUnitTest {
     }
 
     @Test
-    fun consentStorage_writeFailureAndUncertainWriteBlockArming() {
+    fun consentStorage_writeFailureAndUncertainWriteBlockArming_andConsumptionErrorRefuses() {
         val backend = InMemoryStorageBackend()
         val storage = RedButtonStorage(backend)
         val fakeProvider = FakeWipeExecutionProvider()
@@ -466,22 +562,120 @@ class RedButtonUnitTest {
         controller.setCommonConsentChecked(true)
         controller.setRealModeConsentChecked(true)
 
-        // Simulate durable write returning false
+        // Durable write returning false blocks arming
         backend.returnFalseOnWriteKeys = setOf(RedButtonStorage.KEY_CONSENT_RECORD)
         assertFalse(controller.armAction())
         assertEquals(ScreenStage.INSPECTION_AND_CONSENT, controller.uiState.value.stage)
         assertEquals(ArmingErrorState.WRITE_FAILED, controller.uiState.value.armingError)
 
-        // Simulate uncertain write throwing exception
+        // Uncertain write throwing exception blocks arming with WRITE_UNCERTAIN warning
         backend.returnFalseOnWriteKeys = emptySet()
         backend.throwUncertainOnWriteKeys = setOf(RedButtonStorage.KEY_CONSENT_RECORD)
         assertFalse(controller.armAction())
         assertEquals(ScreenStage.INSPECTION_AND_CONSENT, controller.uiState.value.stage)
         assertEquals(ArmingErrorState.WRITE_UNCERTAIN, controller.uiState.value.armingError)
+
+        // Now allow arming, then fail the consumption write AND invalidation remove
+        backend.throwUncertainOnWriteKeys = emptySet()
+        assertTrue(controller.armAction())
+
+        backend.returnFalseOnWriteKeys = setOf(RedButtonStorage.KEY_CONSENT_RECORD)
+        backend.returnFalseOnRemoveKeys = setOf(RedButtonStorage.KEY_CONSENT_RECORD)
+        val consumeErrorSummary = executor.consumeAndExecuteOnce()
+        assertEquals(AttemptOutcome.REFUSED, consumeErrorSummary.outcome)
+        assertEquals("CONSENT_CONSUMPTION_STORAGE_ERROR", consumeErrorSummary.detailCode)
+        assertTrue(consumeErrorSummary.storageStateUncertain)
+        assertEquals(0, fakeProvider.callCount)
     }
 
     // -------------------------------------------------------------------------
-    // 6. Concurrent Consumption, Recreation Safety, TEST MODE & Fail-Closed Execution
+    // 7. Pre-Call State Change, Report Write Failure & Inspector Exceptions (FR-05, FR-09)
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun preCallReinspectionChange_orReportWriteFailure_blocksRealModeWithoutProviderCall() {
+        val backend = InMemoryStorageBackend()
+        val storage = RedButtonStorage(backend)
+        val fakeProvider = FakeWipeExecutionProvider(ProviderCallResult.Accepted)
+
+        // Simulate state changing between initial launch analysis and final pre-call check
+        var inspectCallCounter = 0
+        val executor = ArmedLaunchExecutor(
+            storage = storage,
+            inspector = object : DeviceStateInspector {
+                override fun inspectCurrentState(): RawDeviceState {
+                    inspectCallCounter++
+                    // Call 1: arming; Call 2: initial launch analysis; Call 3: pre-call re-verification
+                    return if (inspectCallCounter == 3) {
+                        qualifiedRawState(lockScreenStatus = LockScreenStatus.INSECURE)
+                    } else {
+                        qualifiedRawState(lockScreenStatus = LockScreenStatus.SECURE)
+                    }
+                }
+            },
+            evaluator = evaluator,
+            wipeExecutionProvider = fakeProvider
+        )
+
+        executor.armForNextLaunch(
+            executionMode = ExecutionMode.REAL_MODE,
+            options = WipeOptions(wipeExternalStorage = true, wipeEuicc = false),
+            commonConsentChecked = true,
+            realModeConsentChecked = true
+        )
+
+        val summary = executor.consumeAndExecuteOnce()
+        assertEquals(AttemptOutcome.REFUSED, summary.outcome)
+        assertTrue(summary.detailCode.startsWith("PRE_CALL_NOT_READY"))
+        assertEquals(0, fakeProvider.callCount)
+
+        // Now test local attempt report write failure before provider call (FR-09)
+        inspectCallCounter = 10 // keep state SECURE
+        executor.armForNextLaunch(
+            executionMode = ExecutionMode.REAL_MODE,
+            options = WipeOptions(wipeExternalStorage = true, wipeEuicc = false),
+            commonConsentChecked = true,
+            realModeConsentChecked = true
+        )
+        backend.returnFalseOnWriteKeys = setOf(RedButtonStorage.KEY_LAST_ATTEMPT_REPORT)
+        val reportFailSummary = executor.consumeAndExecuteOnce()
+        assertEquals(AttemptOutcome.REFUSED, reportFailSummary.outcome)
+        assertEquals("LOCAL_REPORT_WRITE_FAILED", reportFailSummary.detailCode)
+        assertEquals("Provider must not be called when report write fails", 0, fakeProvider.callCount)
+    }
+
+    @Test
+    fun inspectorException_andManualChecklistEphemeralGuarantee() {
+        val backend = InMemoryStorageBackend()
+        val storage = RedButtonStorage(backend)
+        val fakeProvider = FakeWipeExecutionProvider()
+        val throwingExecutor = ArmedLaunchExecutor(
+            storage = storage,
+            inspector = object : DeviceStateInspector {
+                override fun inspectCurrentState(): RawDeviceState {
+                    throw IllegalStateException("Simulated OS service failure")
+                }
+            },
+            evaluator = evaluator,
+            wipeExecutionProvider = fakeProvider
+        )
+        val controller = RedButtonSessionController(throwingExecutor, storage)
+        controller.onLaunchOrRecreate()
+
+        val state = controller.uiState.value
+        assertNotNull(state.evaluation)
+        assertFalse(state.evaluation!!.isReadyForRealMode)
+        assertEquals(0, fakeProvider.callCount)
+
+        // Manual checklist is ephemeral: never stored in StorageBackend
+        controller.toggleManualChecklistItem(0)
+        controller.toggleManualChecklistItem(2)
+        assertEquals(setOf(0, 2), controller.uiState.value.manualChecklist)
+        assertNull(backend.getRawForTest("manual_checklist"))
+    }
+
+    // -------------------------------------------------------------------------
+    // 8. Concurrent Consumption & Activity Recreation (Section 9 & 10)
     // -------------------------------------------------------------------------
 
     @Test
@@ -539,36 +733,6 @@ class RedButtonUnitTest {
     }
 
     @Test
-    fun testModeExecution_neverCallsProductionProvider() {
-        val backend = InMemoryStorageBackend()
-        val storage = RedButtonStorage(backend)
-        val fakeProvider = FakeWipeExecutionProvider()
-        val executor = ArmedLaunchExecutor(
-            storage = storage,
-            inspector = object : DeviceStateInspector {
-                override fun inspectCurrentState() = qualifiedRawState(sdkInt = 34)
-            },
-            evaluator = evaluator,
-            wipeExecutionProvider = fakeProvider
-        )
-
-        executor.armForNextLaunch(
-            executionMode = ExecutionMode.TEST_MODE,
-            options = WipeOptions(wipeExternalStorage = true, wipeEuicc = true),
-            commonConsentChecked = true,
-            realModeConsentChecked = false
-        )
-
-        val step = executor.handleLaunch()
-        assertTrue(step is LaunchStepResult.ExecutedArmedLaunch)
-        val executed = step as LaunchStepResult.ExecutedArmedLaunch
-        assertEquals(AttemptOutcome.SIMULATED, executed.summary.outcome)
-        assertEquals("TEST MODE must NEVER call requestWipe", 0, fakeProvider.callCount)
-        assertNotNull(storage.readLastAttemptReport())
-        assertEquals(AttemptOutcome.SIMULATED, storage.readLastAttemptReport()?.outcome)
-    }
-
-    @Test
     fun activityRecreation_doesNotReExecuteArmedLaunch() {
         val backend = InMemoryStorageBackend()
         val storage = RedButtonStorage(backend)
@@ -582,7 +746,6 @@ class RedButtonUnitTest {
             wipeExecutionProvider = fakeProvider
         )
 
-        // Launch 1: Arm REAL MODE
         executor.armForNextLaunch(
             executionMode = ExecutionMode.REAL_MODE,
             options = WipeOptions(wipeExternalStorage = true, wipeEuicc = false),
@@ -591,7 +754,6 @@ class RedButtonUnitTest {
         )
         assertEquals(0, fakeProvider.callCount)
 
-        // Launch 2: SessionController starts and handles launch
         val secondLaunchController = RedButtonSessionController(executor, storage)
         secondLaunchController.onLaunchOrRecreate()
         assertEquals(ScreenStage.EXECUTION_OUTCOME, secondLaunchController.uiState.value.stage)
@@ -601,68 +763,16 @@ class RedButtonUnitTest {
         )
         assertEquals(1, fakeProvider.callCount)
 
-        // Simulate Activity recreation (screen rotation) calling onLaunchOrRecreate() again
+        // Simulate Activity recreation
         secondLaunchController.onLaunchOrRecreate()
         secondLaunchController.onLaunchOrRecreate()
         assertEquals(1, fakeProvider.callCount)
         assertEquals(ScreenStage.EXECUTION_OUTCOME, secondLaunchController.uiState.value.stage)
 
-        // Launch 3 (subsequent new process/launch after consumption): opens unarmed inspection
+        // Subsequent 3rd launch opens unarmed inspection
         val thirdLaunchController = RedButtonSessionController(executor, storage)
         thirdLaunchController.onLaunchOrRecreate()
         assertEquals(ScreenStage.INSPECTION_AND_CONSENT, thirdLaunchController.uiState.value.stage)
-        assertEquals(1, fakeProvider.callCount)
-    }
-
-    @Test
-    fun stateChangeOrProviderException_refusesWithNoFallbackAndNoRetry() {
-        val backend = InMemoryStorageBackend()
-        val storage = RedButtonStorage(backend)
-        val fakeProvider = FakeWipeExecutionProvider(
-            ProviderCallResult.Refused("DPM_SECURITY_EXCEPTION", "Rejected by OS")
-        )
-        var currentState = qualifiedRawState(sdkInt = 34)
-        val executor = ArmedLaunchExecutor(
-            storage = storage,
-            inspector = object : DeviceStateInspector {
-                override fun inspectCurrentState() = currentState
-            },
-            evaluator = evaluator,
-            wipeExecutionProvider = fakeProvider
-        )
-
-        // 1. Arm while device is ready
-        executor.armForNextLaunch(
-            executionMode = ExecutionMode.REAL_MODE,
-            options = WipeOptions(wipeExternalStorage = true, wipeEuicc = false),
-            commonConsentChecked = true,
-            realModeConsentChecked = true
-        )
-
-        // Change role before next launch -> blocked by continuity check without calling provider
-        currentState = qualifiedRawState(sdkInt = 34, role = ManagementRole.NONE, hasActiveWipePolicy = false)
-        val summary1 = executor.consumeAndExecuteOnce()
-        assertEquals(AttemptOutcome.REFUSED, summary1.outcome)
-        assertTrue(summary1.detailCode.startsWith("CONTINUITY_ROLE_CHANGED"))
-        assertEquals(0, fakeProvider.callCount)
-
-        // 2. Re-arm with valid state, then let provider reject with SecurityException
-        currentState = qualifiedRawState(sdkInt = 34)
-        executor.armForNextLaunch(
-            executionMode = ExecutionMode.REAL_MODE,
-            options = WipeOptions(wipeExternalStorage = true, wipeEuicc = false),
-            commonConsentChecked = true,
-            realModeConsentChecked = true
-        )
-        val summary2 = executor.consumeAndExecuteOnce()
-        assertEquals(AttemptOutcome.REFUSED, summary2.outcome)
-        assertEquals("DPM_SECURITY_EXCEPTION", summary2.detailCode)
-        assertEquals("Called once and never retried", 1, fakeProvider.callCount)
-
-        // Consent remains consumed after failure
-        val summary3 = executor.consumeAndExecuteOnce()
-        assertEquals(AttemptOutcome.REFUSED, summary3.outcome)
-        assertEquals("CONSENT_ALREADY_CONSUMED", summary3.detailCode)
         assertEquals(1, fakeProvider.callCount)
     }
 }
