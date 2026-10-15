@@ -12,6 +12,7 @@ import pl.leon.redbutton.model.ExecutionMode
 import pl.leon.redbutton.model.ExecutionSummary
 import pl.leon.redbutton.model.SanitizationLevel
 import pl.leon.redbutton.model.WipeOptions
+import pl.leon.redbutton.policy.DiagnosticReportFormatter
 import pl.leon.redbutton.storage.ArmConsentResult
 import pl.leon.redbutton.storage.RedButtonStorage
 
@@ -46,6 +47,8 @@ data class RedButtonUiState(
     val armedExecutionMode: ExecutionMode? = null,
     val executionSummary: ExecutionSummary? = null,
     val lastAttemptReport: AttemptReport? = null,
+    val showDiagnosticsPreview: Boolean = false,
+    val diagnosticsCopied: Boolean = false,
     // Ephemeral manual checklist state (Section 6: never persisted, never used for wipe condition)
     val manualChecklist: Set<Int> = emptySet()
 ) {
@@ -54,6 +57,17 @@ data class RedButtonUiState(
 
     val currentSanitizationLevel: SanitizationLevel
         get() = evaluation?.sanitizationLevelFor(options) ?: SanitizationLevel.LEVEL_0_UNSUPPORTED
+
+    fun buildDiagnosticReport(): String {
+        return DiagnosticReportFormatter.formatReport(
+            activeMode = activeExecutionMode,
+            storageFallbackTriggered = storageFallbackTriggered,
+            options = options,
+            evaluation = evaluation,
+            executionSummary = executionSummary,
+            lastAttemptReport = lastAttemptReport
+        )
+    }
 
     val canArm: Boolean
         get() {
@@ -271,6 +285,18 @@ class RedButtonSessionController(
                 updated.remove(index)
             }
             state.copy(manualChecklist = updated)
+        }
+    }
+
+    fun toggleDiagnosticsPreview() {
+        _uiState.update { state ->
+            state.copy(showDiagnosticsPreview = !state.showDiagnosticsPreview)
+        }
+    }
+
+    fun markDiagnosticsCopied() {
+        _uiState.update { state ->
+            state.copy(diagnosticsCopied = true)
         }
     }
 

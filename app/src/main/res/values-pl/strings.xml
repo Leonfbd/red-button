@@ -118,6 +118,14 @@
     <string name="section_last_attempt">Ostatni lokalny raport próby</string>
     <string name="last_attempt_none">Brak zapisanego raportu próby.</string>
 
+    <!-- Diagnostics Export / Copy Section -->
+    <string name="section_diagnostics">Diagnostyka techniczna (Offline)</string>
+    <string name="diagnostics_desc">Wygeneruj lub skopiuj do schowka bezpieczne podsumowanie techniczne (rodzina sprzętu, poziom API, rola DPM, gotowość oraz kod ostatniej próby) do audytu IT lub zgłoszenia błędu. Raport nie zawiera danych osobowych, IMEI ani numeru seryjnego.</string>
+    <string name="btn_copy_diagnostics">Kopiuj raport diagnostyczny do schowka</string>
+    <string name="btn_show_diagnostics">Pokaż podgląd raportu diagnostycznego</string>
+    <string name="btn_hide_diagnostics">Ukryj podgląd raportu diagnostycznego</string>
+    <string name="diagnostics_copied_confirmation">Skopiowano raport diagnostyczny do schowka.</string>
+
     <!-- Manual Theft Readiness Checklist (Section 6) -->
     <string name="section_manual_checklist">Checklista gotowości do kradzieży (pomoc ręczna)</string>
     <string name="manual_checklist_disclaimer">Ta checklista jest wyłącznie ręczną, tymczasową pomocą użytkownika. Aplikacja NIE odczytuje tych ustawień, NIE zapisuje ich i NIE używa ich jako warunku resetu.</string>

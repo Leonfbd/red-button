@@ -118,6 +118,14 @@
     <string name="section_last_attempt">Last Local Attempt Report</string>
     <string name="last_attempt_none">No attempt recorded yet.</string>
 
+    <!-- Diagnostics Export / Copy Section -->
+    <string name="section_diagnostics">Technical Diagnostics (Offline)</string>
+    <string name="diagnostics_desc">Generate or copy a privacy-safe technical summary (device family, API level, DPM role, readiness, and last attempt code) for IT auditing or issue reporting. Contains no personal data, IMEI, or serial numbers.</string>
+    <string name="btn_copy_diagnostics">Copy Diagnostic Report to Clipboard</string>
+    <string name="btn_show_diagnostics">Show Diagnostic Report Preview</string>
+    <string name="btn_hide_diagnostics">Hide Diagnostic Report Preview</string>
+    <string name="diagnostics_copied_confirmation">Diagnostic report copied to clipboard.</string>
+
     <!-- Manual Theft Readiness Checklist (Section 6) -->
     <string name="section_manual_checklist">Manual Readiness Checklist (Ephemeral Helper)</string>
     <string name="manual_checklist_disclaimer">This checklist is solely a temporary manual reminder for you. Red Button does NOT read, verify, save, or use these items as a condition for reset.</string>

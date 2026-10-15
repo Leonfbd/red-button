@@ -24,6 +24,7 @@ import pl.leon.redbutton.model.WipeApiPath
 import pl.leon.redbutton.model.WipeFlags
 import pl.leon.redbutton.model.WipeOptions
 import pl.leon.redbutton.policy.DevicePolicyEvaluator
+import pl.leon.redbutton.policy.DiagnosticReportFormatter
 import pl.leon.redbutton.provider.DeviceStateInspector
 import pl.leon.redbutton.provider.FakeWipeExecutionProvider
 import pl.leon.redbutton.provider.ProviderCallResult
@@ -822,5 +823,27 @@ class RedButtonUnitTest {
         secondLaunch.onLaunchOrRecreate(null)
         assertEquals(ScreenStage.EXECUTION_OUTCOME, secondLaunch.uiState.value.stage)
         assertEquals(1, fakeProvider.callCount)
+    }
+
+    @Test
+    fun diagnosticReportFormatter_formatsCompleteOfflineTechnicalSummary() {
+        val eval = evaluator.evaluate(qualifiedRawState(sdkInt = 35))
+        val options = WipeOptions(wipeExternalStorage = true, wipeEuicc = true)
+        val reportText = DiagnosticReportFormatter.formatReport(
+            activeMode = ExecutionMode.TEST_MODE,
+            storageFallbackTriggered = false,
+            options = options,
+            evaluation = eval,
+            executionSummary = null,
+            lastAttemptReport = null
+        )
+
+        assertTrue(reportText.contains("ApplicationId: pl.leon.redbutton"))
+        assertTrue(reportText.contains("ManufacturerModel: Google Pixel 8"))
+        assertTrue(reportText.contains("KnownHardwareFieldsCount: 7/7"))
+        assertTrue(reportText.contains("ManagementRole: DEVICE_OWNER"))
+        assertTrue(reportText.contains("PublicDpmPath: MODERN_WIPE_DEVICE"))
+        assertTrue(reportText.contains("RequestClassificationLevel: Level 3"))
+        assertTrue(reportText.contains("LastAttempt: NONE"))
     }
 }

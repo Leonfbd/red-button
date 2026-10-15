@@ -34,11 +34,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -77,6 +80,7 @@ fun RedButtonApp(
     onCloseApplication: () -> Unit
 ) {
     val state by controller.uiState.collectAsState()
+    val clipboardManager = LocalClipboardManager.current
 
     RedButtonTheme {
         Surface(
@@ -93,6 +97,12 @@ fun RedButtonApp(
                         onToggleCommonConsent = controller::setCommonConsentChecked,
                         onToggleRealConsent = controller::setRealModeConsentChecked,
                         onToggleManualChecklist = controller::toggleManualChecklistItem,
+                        onToggleDiagnosticsPreview = controller::toggleDiagnosticsPreview,
+                        onCopyDiagnostics = {
+                            val reportText = state.buildDiagnosticReport()
+                            clipboardManager.setText(AnnotatedString(reportText))
+                            controller.markDiagnosticsCopied()
+                        },
                         onRefresh = controller::refreshDeviceInspection,
                         onRequestDeviceAdmin = onRequestDeviceAdmin,
                         onArm = {
@@ -113,8 +123,15 @@ fun RedButtonApp(
                     val summary = state.executionSummary
                     if (summary != null) {
                         ExecutionOutcomeScreen(
+                            state = state,
                             summary = summary,
                             lastReport = state.lastAttemptReport,
+                            onToggleDiagnosticsPreview = controller::toggleDiagnosticsPreview,
+                            onCopyDiagnostics = {
+                                val reportText = state.buildDiagnosticReport()
+                                clipboardManager.setText(AnnotatedString(reportText))
+                                controller.markDiagnosticsCopied()
+                            },
                             onReturnToInspection = controller::returnToDisarmedInspection
                         )
                     }
@@ -133,6 +150,8 @@ private fun InspectionAndConsentScreen(
     onToggleCommonConsent: (Boolean) -> Unit,
     onToggleRealConsent: (Boolean) -> Unit,
     onToggleManualChecklist: (Int) -> Unit,
+    onToggleDiagnosticsPreview: () -> Unit,
+    onCopyDiagnostics: () -> Unit,
     onRefresh: () -> Unit,
     onRequestDeviceAdmin: () -> Unit,
     onArm: () -> Unit
@@ -225,6 +244,13 @@ private fun InspectionAndConsentScreen(
 
         // Last Local Attempt Report (Section 8)
         LastAttemptReportCard(report = state.lastAttemptReport)
+
+        // Technical Diagnostics Export / Preview (Section 8, Section 11)
+        TechnicalDiagnosticsCard(
+            state = state,
+            onTogglePreview = onToggleDiagnosticsPreview,
+            onCopyDiagnostics = onCopyDiagnostics
+        )
     }
 }
 
@@ -860,6 +886,96 @@ private fun LastAttemptReportCard(report: AttemptReport?) {
     }
 }
 
+@Composable
+private fun TechnicalDiagnosticsCard(
+    state: RedButtonUiState,
+    onTogglePreview: () -> Unit,
+    onCopyDiagnostics: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("technical_diagnostics_card")
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.section_diagnostics),
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                modifier = Modifier.semantics { heading() }
+            )
+            Text(
+                text = stringResource(R.string.diagnostics_desc),
+                fontSize = 12.sp,
+                color = Color(0xFFBDBDBD)
+            )
+
+            OutlinedButton(
+                onClick = onCopyDiagnostics,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("btn_copy_diagnostics")
+            ) {
+                Text(stringResource(R.string.btn_copy_diagnostics))
+            }
+
+            if (state.diagnosticsCopied) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF1B5E20), RoundedCornerShape(6.dp))
+                        .padding(10.dp)
+                        .testTag("diagnostics_copied_banner")
+                ) {
+                    Text(
+                        text = stringResource(R.string.diagnostics_copied_confirmation),
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            OutlinedButton(
+                onClick = onTogglePreview,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("btn_toggle_diagnostics_preview")
+            ) {
+                Text(
+                    if (state.showDiagnosticsPreview) {
+                        stringResource(R.string.btn_hide_diagnostics)
+                    } else {
+                        stringResource(R.string.btn_show_diagnostics)
+                    }
+                )
+            }
+
+            if (state.showDiagnosticsPreview) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF101010), RoundedCornerShape(6.dp))
+                        .border(1.dp, Color(0xFF424242), RoundedCornerShape(6.dp))
+                        .padding(10.dp)
+                        .testTag("diagnostics_preview_box")
+                ) {
+                    Text(
+                        text = state.buildDiagnosticReport(),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        color = Color(0xFFE0E0E0)
+                    )
+                }
+            }
+        }
+    }
+}
+
 /**
  * FR-10: After arming, there is NO cancel button inside Red Button.
  * The only path to disarm before the next launch is clearing app storage in Android Settings.
@@ -931,8 +1047,11 @@ private fun ArmedClosingScreen(
  */
 @Composable
 private fun ExecutionOutcomeScreen(
+    state: RedButtonUiState,
     summary: ExecutionSummary,
     lastReport: AttemptReport?,
+    onToggleDiagnosticsPreview: () -> Unit,
+    onCopyDiagnostics: () -> Unit,
     onReturnToInspection: () -> Unit
 ) {
     val scrollState = rememberScrollState()
@@ -1036,6 +1155,12 @@ private fun ExecutionOutcomeScreen(
         }
 
         LastAttemptReportCard(report = lastReport)
+
+        TechnicalDiagnosticsCard(
+            state = state,
+            onTogglePreview = onToggleDiagnosticsPreview,
+            onCopyDiagnostics = onCopyDiagnostics
+        )
 
         OutlinedButton(
             onClick = onReturnToInspection,

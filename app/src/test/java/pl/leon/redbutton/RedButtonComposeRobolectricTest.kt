@@ -386,4 +386,28 @@ class RedButtonComposeRobolectricTest {
         assertTrue(mismatchRes is ProviderCallResult.Refused)
         assertEquals("PROVIDER_CONTINUITY_MISMATCH", (mismatchRes as ProviderCallResult.Refused).code)
     }
+
+    @Test
+    fun composeUi_technicalDiagnosticsCopyAndPreview_worksOffline() {
+        val (storage, executor, _) = buildComponents()
+        val controller = RedButtonSessionController(executor, storage)
+        controller.onLaunchOrRecreate()
+
+        composeTestRule.setContent {
+            RedButtonApp(
+                controller = controller,
+                onRequestDeviceAdmin = {},
+                onCloseApplication = {}
+            )
+        }
+
+        // Toggle diagnostics preview
+        composeTestRule.onNodeWithTag("btn_toggle_diagnostics_preview").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag("diagnostics_preview_box").performScrollTo().assertIsDisplayed()
+
+        // Copy diagnostics to clipboard
+        composeTestRule.onNodeWithTag("btn_copy_diagnostics").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag("diagnostics_copied_banner").performScrollTo().assertIsDisplayed()
+        assertTrue(controller.uiState.value.diagnosticsCopied)
+    }
 }
