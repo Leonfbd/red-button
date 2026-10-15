@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Red Button</string>
+    <string name="device_admin_description">Pozwala aplikacji Red Button poprosić o reset fabryczny przez Android DevicePolicyManager po jawnym, jednorazowym uzbrojeniu w aplikacji. Samo nadanie uprawnienia administratora nigdy nie kasuje urządzenia.</string>
+
+    <!-- Mode & Status Banners -->
+    <string name="mode_test_badge">TEST MODE (TYLKO SYMULACJA)</string>
+    <string name="mode_real_badge">REAL MODE (ŻĄDANIE PRODUKCYJNE)</string>
+    <string name="mode_test_subtitle">Tylko symulacja — następne uruchomienie po uzbrojeniu wykona analizę i nigdy nie wywoła wipeData() ani wipeDevice().</string>
+    <string name="mode_real_subtitle">Tryb produkcyjny — następne uruchomienie po uzbrojeniu zużyje jednorazową zgodę i spróbuje wysłać jedno natywne żądanie resetu DPM.</string>
+    <string name="storage_fallback_warning">Wykryto błąd odczytu pamięci: TEST MODE został automatycznie włączony jako bezpieczna wartość domyślna.</string>
+
+    <string name="readiness_ready">GOTOWOŚĆ DO WYSŁANIA ŻĄDANIA</string>
+    <string name="readiness_blocked">ZABLOKOWANE (FAIL-CLOSED)</string>
+    <string name="readiness_test_ready">SYMULACJA GOTOWA (ŚCIEŻKA PRODUKCYJNA KWALIFIKOWANA)</string>
+    <string name="readiness_test_blocked">SYMULACJA GOTOWA (ŚCIEŻKA PRODUKCYJNA BYŁABY ZABLOKOWANA)</string>
+
+    <!-- Primary Disclaimer -->
+    <string name="core_limitation_title">Najważniejsze ograniczenie Androida</string>
+    <string name="core_limitation_body">Żadna wersja Androida ani aplikacja nie może zagwarantować, że reset zostanie przyjęty, zakończony lub że usunie wszystkie dane z każdego nośnika. Red Button może w kwalifikowanej konfiguracji poprosić Androida o wykonanie oficjalnej operacji DevicePolicyManager. Nie jest to gwarantowane ani certyfikowane wymazanie, aplikacja nie wykrywa kradzieży i nie działa zdalnie ani w tle.</string>
+
+    <!-- Device Inspection Section -->
+    <string name="section_device_status">Stan urządzenia i polityki zarządzania</string>
+    <string name="label_device_model">Urządzenie (Producent / Model)</string>
+    <string name="label_android_api">Android / Poziom API</string>
+    <string name="label_security_patch">Poprawka zabezpieczeń</string>
+    <string name="label_hardware_fields">Zweryfikowane pola hardware-family</string>
+    <string name="label_management_role">Rola zarządzania</string>
+    <string name="label_active_wipe_policy">Aktywna polityka resetu</string>
+    <string name="label_user_qualification">Kwalifikacja użytkownika</string>
+    <string name="label_wipe_api_path">Publiczna ścieżka DPM</string>
+    <string name="label_lock_screen">Bezpieczna blokada ekranu (Keyguard)</string>
+    <string name="label_encryption">Stan szyfrowania pamięci</string>
+    <string name="label_euicc_feature">Cecha eSIM (eUICC)</string>
+    <string name="label_sanitization_level">Poziom klasyfikacji żądania</string>
+
+    <string name="value_yes">Tak</string>
+    <string name="value_no">Nie</string>
+    <string name="encryption_note">Raport aktywnego szyfrowania potwierdza wyłącznie odczyt stanu systemu. Nie potwierdza unieważnienia kluczy po resecie.</string>
+    <string name="sanitization_note">Wewnętrzna klasyfikacja dostępnego żądania (Poziomy 0–3). Poziom 4 (sanitizacja producenta) nie jest wdrożony i nigdy nie jest raportowany. Żaden poziom nie oznacza certyfikacji NIST/IEEE ani fizycznego nadpisania pamięci flash.</string>
+
+    <!-- Sanitization Levels -->
+    <string name="level_0_label">Poziom 0 — Brak obsługi / Zablokowane</string>
+    <string name="level_1_label">Poziom 1 — Natywny reset starszego Androida wipeData() (bez flag rozszerzających)</string>
+    <string name="level_2_label">Poziom 2 — Natywny reset DPM wipeDevice() (bez flag rozszerzających)</string>
+    <string name="level_3_label">Poziom 3 — Natywne żądanie DPM z obsługiwaną flagą rozszerzającą</string>
+
+    <!-- Blocking Reasons -->
+    <string name="section_blocking_reasons">Warunki blokujące (Fail-Closed)</string>
+    <string name="block_api_below_23">Poziom API Androida poniżej 23 (brak obsługi).</string>
+    <string name="block_no_active_admin">Red Button nie ma aktywnej polityki resetu Device Admin / Owner.</string>
+    <string name="block_api23_requires_do">Na API 23 pełny zakres jest akceptowany wyłącznie dla Device Owner, ponieważ użytkownika systemowego nie można wiarygodnie potwierdzić publicznym odczytem.</string>
+    <string name="block_profile_owner_api24_33">Zwykły Profile Owner na API 24–33 jest odrzucany dla pełnego resetu urządzenia.</string>
+    <string name="block_secondary_user">Użytkownik dodatkowy (niebędący głównym/systemowym) jest odrzucany.</string>
+    <string name="block_user_unknown">Nieznany stan kwalifikacji użytkownika systemu (fail-closed).</string>
+    <string name="block_api34_requires_owner">Na API 34+ prywatna instalacja nie ma ścieżki pełnego resetu. Wymagana jest rola Device Owner lub właściciela profilu organizacyjnego nadana przez Android Enterprise.</string>
+    <string name="block_org_profile_missing_parent">Profil organizacyjny nie ma dostępnej instancji DPM profilu nadrzędnego lub aktywnej polityki resetu.</string>
+    <string name="block_lock_not_secure">Brak potwierdzonej bezpiecznej blokady ekranu (KeyguardManager.isDeviceSecure() = false).</string>
+    <string name="block_lock_unknown">Nie udało się potwierdzić stanu blokady ekranu (unknown).</string>
+    <string name="block_encryption_inactive">Szyfrowanie pamięci nie jest aktywne (INACTIVE lub ACTIVATING).</string>
+    <string name="block_encryption_default_key">Szyfrowanie używa domyślnego klucza (ACTIVE_DEFAULT_KEY) — zablokowane dla REAL MODE.</string>
+    <string name="block_encryption_unknown">Stan szyfrowania pamięci jest nieznany lub nieobsługiwany.</string>
+    <string name="block_insufficient_identity">Mniej niż 3 znane, wiarygodne pola identyfikacyjne hardware-family.</string>
+
+    <!-- Device Admin Activation -->
+    <string name="btn_request_device_admin">Otwórz zgodę administratora urządzenia Android</string>
+    <string name="admin_activation_hint">Zgoda administratora Androida jest osobnym procesem systemowym i sama w sobie niczego nie resetuje. Uwaga: na API 34+ zwykły Device Admin nie wystarcza; wymagane jest oficjalne provisionowanie Android Enterprise (Device Owner / profil organizacyjny).</string>
+    <string name="btn_refresh_state">Odśwież odczyt urządzenia</string>
+
+    <!-- Configuration & Flags -->
+    <string name="section_mode_and_options">Tryb wykonania i opcje żądania</string>
+    <string name="toggle_test_mode_title">Włącz TEST MODE (Symulacja)</string>
+    <string name="toggle_test_mode_desc">Gdy włączony, następne uruchomienie po uzbrojeniu wykonuje wyłącznie analizę i NIGDY nie wywołuje wipeData() ani wipeDevice().</string>
+    <string name="option_external_storage_title">Żądaj WIPE_EXTERNAL_STORAGE (pamięć zewnętrzna)</string>
+    <string name="option_external_storage_desc">Domyślnie włączone, gdy obsługiwane. Publiczne API nie potwierdza, które nośniki wymienne lub adoptowane faktycznie obejmie system/OEM.</string>
+    <string name="option_euicc_title">Żądaj WIPE_EUICC (usunięcie profili eSIM)</string>
+    <string name="option_euicc_desc">Dostępne wyłącznie w obsługiwanej konfiguracji API 34+ po świadomym zaznaczeniu (opt-in). Poniżej API 28 cecha eSIM ma status „nieznana”.</string>
+    <string name="forbidden_flags_note">Flagi WIPE_RESET_PROTECTION_DATA (czyszczenie FRP) oraz WIPE_SILENTLY nigdy nie są żądane.</string>
+
+    <!-- Informed Consent (FR-02) -->
+    <string name="section_informed_consent">Świadoma zgoda przed uzbrojeniem</string>
+    <string name="consent_bullet_1">• Automatyczne działanie przy kolejnym starcie: kolejny start Red Button — przez użytkownika albo, jeśli Android na to pozwoli, przez inną aplikację lub składnik systemu — automatycznie zużyje zgodę i uruchomi akcję bez drugiego potwierdzenia.</string>
+    <string name="consent_bullet_2">• Brak rozpoznawania źródła i kradzieży: aplikacja nie rozpoznaje, kto zainicjował otwarcie, nie wykrywa kradzieży, nie lokalizuje telefonu i nie działa zdalnie.</string>
+    <string name="consent_bullet_3">• Nieodwracalna utrata danych: przyjęty reset produkcyjny może trwale usunąć lokalne dane z urządzenia.</string>
+    <string name="consent_bullet_4">• Brak gwarancji wykonania: żądanie może zostać odrzucone przez Androida/OEM i nie gwarantuje kompletnego wymazania każdej komórki pamięci flash.</string>
+    <string name="consent_bullet_5">• Niepewny zakres pamięci zewnętrznej: WIPE_EXTERNAL_STORAGE jest zlecane, gdy obsługiwane, ale rzeczywisty zakres zależy od Androida/OEM.</string>
+    <string name="consent_bullet_6">• eSIM oraz FRP: usunięcie eSIM jest opcjonalne (tylko API 34+ po opt-in); blokada FRP nigdy nie jest przez aplikację czyszczona.</string>
+    <string name="consent_bullet_7">• Brak ekranu anulowania po uzbrojeniu: po uzbrojeniu w aplikacji nie ma przycisku anulowania, ponieważ jej ponowne otwarcie uruchamia akcję. Jedyną ścieżką anulowania przed kolejnym startem jest wyczyszczenie danych aplikacji w Ustawieniach Androida (o ile polityka administratora na to pozwala).</string>
+
+    <string name="checkbox_consent_common">Rozumiem, że uzbrojenie dotyczy NASTĘPNEGO uruchomienia Red Button, a po uzbrojeniu w aplikacji nie ma ekranu anulowania.</string>
+    <string name="checkbox_consent_real">Świadomie upoważniam aplikację do wysłania JEDNEGO produkcyjnego żądania resetu (REAL MODE) przy następnym uruchomieniu i akceptuję ryzyko trwałej utraty danych.</string>
+
+    <string name="btn_arm_test">Uzbrój jednorazową symulację (TEST MODE)</string>
+    <string name="btn_arm_real">Uzbrój jednorazowe żądanie resetu (REAL MODE)</string>
+
+    <string name="arm_error_failed">Błąd trwałego zapisu zgody. Aplikacja NIE została uzbrojona.</string>
+    <string name="arm_error_uncertain">Wynik zapisu w pamięci jest niepewny! Nie otwieraj ponownie aplikacji bez sprawdzenia lub wyczyszczenia jej danych w Ustawieniach Androida, ponieważ akcja może nadal być oczekująca.</string>
+
+    <!-- Armed Closing Screen -->
+    <string name="armed_screen_title">UZBROJONO NA NASTĘPNE URUCHOMIENIE</string>
+    <string name="armed_screen_body_test">Jednorazowa symulacja w TEST MODE została trwale zapisana. Przy następnym otwarciu Red Button aplikacja natychmiast zużyje zgodę i wykona symulację bez wywoływania produkcyjnego API resetu.</string>
+    <string name="armed_screen_body_real">Jednorazowe upoważnienie REAL MODE zostało trwale zapisane. Przy następnym otwarciu Red Button aplikacja natychmiast zużyje upoważnienie i podejmie próbę wysłania JEDNEGO natywnego żądania resetu DevicePolicyManager BEZ kolejnego ekranu potwierdzenia.</string>
+    <string name="armed_screen_no_cancel_note">W aplikacji nie ma ekranu anulowania. Aby rozbroić przed kolejnym uruchomieniem, przejdź do Ustawień Androida → Aplikacje → Red Button → Pamięć → Wyczyść dane (jeśli polityka na to pozwala).</string>
+    <string name="btn_close_after_arm">Zamknij aplikację</string>
+
+    <!-- Execution Outcome Screen -->
+    <string name="outcome_screen_title">Wynik jednorazowego wykonania</string>
+    <string name="outcome_wipe_requested">WIPE REQUESTED (ŻĄDANIE PRZYJĘTE)</string>
+    <string name="outcome_simulated">SIMULATED (SYMULACJA TEST MODE)</string>
+    <string name="outcome_refused">REFUSED (ODMOWA FAIL-CLOSED)</string>
+    <string name="outcome_error">ERROR (BŁĄD — BRAK PONOWIENIA)</string>
+
+    <string name="outcome_disclaimer">Status „WIPE REQUESTED” oznacza wyłącznie, że wywołanie publicznego API Androida powróciło bez zgłoszenia odmowy. Nie oznacza ukończonego resetu ani zweryfikowanego wymazania nośników. Jednorazowa zgoda została zużyta i nie zostanie ponowiona automatycznie.</string>
+    <string name="outcome_uncertain_storage_warning">OSTRZEŻENIE: Stan pamięci podczas zużywania zgody był niepewny. Przed ponownym otwarciem aplikacji wyczyść jej dane w Ustawieniach Androida.</string>
+    <string name="btn_return_to_inspection">Powrót do ekranu oceny gotowości (Rozbrojony)</string>
+
+    <!-- Last Attempt Report Section -->
+    <string name="section_last_attempt">Ostatni lokalny raport próby</string>
+    <string name="last_attempt_none">Brak zapisanego raportu próby.</string>
+
+    <!-- Diagnostics Export / Copy Section -->
+    <string name="section_diagnostics">Diagnostyka techniczna (Offline)</string>
+    <string name="diagnostics_desc">Wygeneruj lub skopiuj do schowka bezpieczne podsumowanie techniczne (rodzina sprzętu, poziom API, rola DPM, gotowość oraz kod ostatniej próby) do audytu IT lub zgłoszenia błędu. Raport nie zawiera danych osobowych, IMEI ani numeru seryjnego.</string>
+    <string name="btn_copy_diagnostics">Kopiuj raport diagnostyczny do schowka</string>
+    <string name="btn_show_diagnostics">Pokaż podgląd raportu diagnostycznego</string>
+    <string name="btn_hide_diagnostics">Ukryj podgląd raportu diagnostycznego</string>
+    <string name="diagnostics_copied_confirmation">Skopiowano raport diagnostyczny do schowka.</string>
+
+    <!-- Manual Theft Readiness Checklist (Section 6) -->
+    <string name="section_manual_checklist">Checklista gotowości do kradzieży (pomoc ręczna)</string>
+    <string name="manual_checklist_disclaimer">Ta checklista jest wyłącznie ręczną, tymczasową pomocą użytkownika. Aplikacja NIE odczytuje tych ustawień, NIE zapisuje ich i NIE używa ich jako warunku resetu.</string>
+    <string name="checklist_item_1">Ustawiono silną blokadę ekranu (długi PIN / hasło) oraz krótki czas automatycznego blokowania</string>
+    <string name="checklist_item_2">Zablokowano panel szybkich ustawień, transmisję USB i menu zasilania na zablokowanym ekranie</string>
+    <string name="checklist_item_3">Ukryto poufną treść powiadomień na ekranie blokady</string>
+    <string name="checklist_item_4">Włączono kod PIN karty SIM lub zabezpieczono zarządzanie profilami eSIM</string>
+    <string name="checklist_item_5">Wykonano kopię zapasową ważnych danych przed uzbrojeniem REAL MODE</string>
+</resources>

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Red Button</string>
+    <string name="device_admin_description">Allows Red Button to request a factory reset through Android DevicePolicyManager after explicit one-time arming in the application. Granting administrator rights alone never wipes the device.</string>
+
+    <!-- Mode & Status Banners -->
+    <string name="mode_test_badge">TEST MODE (SIMULATION ONLY)</string>
+    <string name="mode_real_badge">REAL MODE (PRODUCTION REQUEST)</string>
+    <string name="mode_test_subtitle">Simulation only — next launch after arming performs analysis and never calls wipeData() or wipeDevice().</string>
+    <string name="mode_real_subtitle">Production mode — next launch after arming consumes one-time consent and attempts a single native DPM reset request.</string>
+    <string name="storage_fallback_warning">Storage read error detected: TEST MODE was automatically forced ON as a fail-safe default.</string>
+
+    <string name="readiness_ready">READY FOR WIPE REQUEST</string>
+    <string name="readiness_blocked">BLOCKED (FAIL-CLOSED)</string>
+    <string name="readiness_test_ready">SIMULATION READY (REAL PATH QUALIFIED)</string>
+    <string name="readiness_test_blocked">SIMULATION READY (REAL PATH WOULD BE BLOCKED)</string>
+
+    <!-- Primary Disclaimer -->
+    <string name="core_limitation_title">Critical Android Limitation</string>
+    <string name="core_limitation_body">No Android version or app can guarantee that a reset will be accepted, completed, or erase all data from every storage medium. Red Button can only ask Android to run an official DevicePolicyManager operation in a qualified configuration. It is NOT a guaranteed or certified wipe, does NOT detect theft, and does NOT work remotely or in the background.</string>
+
+    <!-- Device Inspection Section -->
+    <string name="section_device_status">Device &amp; Policy Readiness</string>
+    <string name="label_device_model">Device (Make / Model)</string>
+    <string name="label_android_api">Android / API Level</string>
+    <string name="label_security_patch">Security Patch</string>
+    <string name="label_hardware_fields">Verified Hardware-Family Fields</string>
+    <string name="label_management_role">Management Role</string>
+    <string name="label_active_wipe_policy">Active Wipe Policy</string>
+    <string name="label_user_qualification">User Qualification</string>
+    <string name="label_wipe_api_path">Public DPM Path</string>
+    <string name="label_lock_screen">Secure Screen Lock (Keyguard)</string>
+    <string name="label_encryption">Storage Encryption Status</string>
+    <string name="label_euicc_feature">eSIM (eUICC) Feature</string>
+    <string name="label_sanitization_level">Request Classification Level</string>
+
+    <string name="value_yes">Yes</string>
+    <string name="value_no">No</string>
+    <string name="encryption_note">Active encryption report confirms only the OS status read. It does not confirm post-reset cryptographic key destruction.</string>
+    <string name="sanitization_note">Internal request classification (Levels 0–3). Level 4 (OEM sanitization) is not implemented and never reported. No level certifies NIST/IEEE erasure or physical flash overwrite.</string>
+
+    <!-- Sanitization Levels -->
+    <string name="level_0_label">Level 0 — Unsupported / Blocked</string>
+    <string name="level_1_label">Level 1 — Legacy DPM wipeData() (no extension flags)</string>
+    <string name="level_2_label">Level 2 — Modern DPM wipeDevice() (no extension flags)</string>
+    <string name="level_3_label">Level 3 — Native DPM Request with Supported Extension Flag(s)</string>
+
+    <!-- Blocking Reasons -->
+    <string name="section_blocking_reasons">Blocking Conditions (Fail-Closed)</string>
+    <string name="block_api_below_23">Android API is below 23 (unsupported).</string>
+    <string name="block_no_active_admin">Red Button does not have an active Device Admin / Owner wipe policy.</string>
+    <string name="block_api23_requires_do">On API 23, full wipe is accepted only for Device Owner because system user cannot be reliably verified via public read.</string>
+    <string name="block_profile_owner_api24_33">Ordinary Profile Owner on API 24–33 cannot perform a full device wipe.</string>
+    <string name="block_secondary_user">Secondary or non-system user is rejected for full device wipe.</string>
+    <string name="block_user_unknown">User qualification state is unknown (fail-closed).</string>
+    <string name="block_api34_requires_owner">On API 34+, private/unmanaged installation has no full-wipe path. Device Owner or Organization-Owned Profile Owner (via Android Enterprise provisioning) is required.</string>
+    <string name="block_org_profile_missing_parent">Organization-owned managed profile is missing parent profile DPM instance or active policy.</string>
+    <string name="block_lock_not_secure">Screen lock is not secure (KeyguardManager.isDeviceSecure() is false).</string>
+    <string name="block_lock_unknown">Screen lock security status could not be verified (unknown).</string>
+    <string name="block_encryption_inactive">Storage encryption is not active (INACTIVE or ACTIVATING).</string>
+    <string name="block_encryption_default_key">Storage encryption uses default key (ACTIVE_DEFAULT_KEY) — blocked for REAL MODE.</string>
+    <string name="block_encryption_unknown">Storage encryption status is unknown or unsupported.</string>
+    <string name="block_insufficient_identity">Fewer than 3 reliable hardware-family identity fields detected.</string>
+
+    <!-- Device Admin Activation -->
+    <string name="btn_request_device_admin">Open Android Device Admin Activation</string>
+    <string name="admin_activation_hint">Granting Device Admin in Android Settings is a separate system step and never triggers a wipe by itself. Note: On API 34+, standard Device Admin is insufficient; Android Enterprise Device Owner / Org-Owned Profile Owner provisioning is required.</string>
+    <string name="btn_refresh_state">Refresh Device Inspection</string>
+
+    <!-- Configuration & Flags -->
+    <string name="section_mode_and_options">Execution Mode &amp; Options</string>
+    <string name="toggle_test_mode_title">Enable TEST MODE (Simulation)</string>
+    <string name="toggle_test_mode_desc">When enabled, the next launch after arming only simulates evaluation and NEVER calls wipeData() or wipeDevice().</string>
+    <string name="option_external_storage_title">Request WIPE_EXTERNAL_STORAGE</string>
+    <string name="option_external_storage_desc">Default ON when supported. Public Android API does not confirm which removable SD cards or adopted storage volumes the OS/OEM will actually erase.</string>
+    <string name="option_euicc_title">Request WIPE_EUICC (Erase eSIM profiles)</string>
+    <string name="option_euicc_desc">Opt-in only on supported API 34+ configurations with eUICC hardware. Below API 28, eSIM capability is reported as unknown.</string>
+    <string name="forbidden_flags_note">WIPE_RESET_PROTECTION_DATA (FRP clear) and WIPE_SILENTLY are strictly forbidden and never requested.</string>
+
+    <!-- Informed Consent (FR-02) -->
+    <string name="section_informed_consent">Informed Consent Before Arming</string>
+    <string name="consent_bullet_1">• Next launch triggers automatically: The very next start of Red Button — whether opened by you or, if Android permits, by another app or system component — will automatically consume this consent and trigger the action without a second confirmation screen.</string>
+    <string name="consent_bullet_2">• No launch authentication or theft detection: The app cannot identify who opened it, does not detect theft, does not locate the device, and does not run remotely.</string>
+    <string name="consent_bullet_3">• Irreversible data loss: An accepted production reset request may permanently erase local data on the device.</string>
+    <string name="consent_bullet_4">• No guarantee of acceptance or erasure: Android or the OEM may reject the request, fail to complete it, or leave residual data on flash media.</string>
+    <string name="consent_bullet_5">• External storage uncertainty: WIPE_EXTERNAL_STORAGE is requested when supported, but actual coverage of removable or adopted media depends on Android/OEM.</string>
+    <string name="consent_bullet_6">• eSIM &amp; FRP: Removing eSIM requires explicit opt-in on API 34+; Factory Reset Protection (FRP) is NEVER cleared by this app.</string>
+    <string name="consent_bullet_7">• No in-app cancel screen after arming: Once armed, reopening Red Button executes the action. The only way to disarm before the next launch is clearing app storage in Android Settings (which may be blocked by administrator policy).</string>
+
+    <string name="checkbox_consent_common">I understand that arming applies to the NEXT launch of Red Button and there is NO cancel screen inside the app after arming.</string>
+    <string name="checkbox_consent_real">I explicitly authorize ONE production factory reset request (REAL MODE) on the next launch and accept the risk of permanent, irreversible data loss.</string>
+
+    <string name="btn_arm_test">Arm One-Time Simulation (TEST MODE)</string>
+    <string name="btn_arm_real">Arm One-Time Factory Reset Request (REAL MODE)</string>
+
+    <string name="arm_error_failed">Failed to save one-time consent to storage. The app was NOT armed.</string>
+    <string name="arm_error_uncertain">Storage write result is uncertain! Do NOT reopen the app without checking or clearing app data in Android Settings, as an armed record might be pending.</string>
+
+    <!-- Armed Closing Screen -->
+    <string name="armed_screen_title">ARMED FOR NEXT LAUNCH</string>
+    <string name="armed_screen_body_test">One-time TEST MODE simulation has been durably armed. The next time Red Button is opened, it will immediately consume this consent and run the simulation without calling any production wipe API.</string>
+    <string name="armed_screen_body_real">One-time REAL MODE authorization has been durably armed. The next time Red Button is opened, it will immediately consume this authorization and attempt ONE native DevicePolicyManager reset request WITHOUT another confirmation screen.</string>
+    <string name="armed_screen_no_cancel_note">There is no cancel button in Red Button. To disarm before the next launch, go to Android Settings → Apps → Red Button → Storage → Clear storage (if allowed by policy).</string>
+    <string name="btn_close_after_arm">Close Application</string>
+
+    <!-- Execution Outcome Screen -->
+    <string name="outcome_screen_title">One-Time Execution Result</string>
+    <string name="outcome_wipe_requested">WIPE REQUESTED (ŻĄDANIE PRZYJĘTE)</string>
+    <string name="outcome_simulated">SIMULATED (TEST MODE)</string>
+    <string name="outcome_refused">REFUSED (FAIL-CLOSED)</string>
+    <string name="outcome_error">ERROR (NO FALLBACK / NO RETRY)</string>
+
+    <string name="outcome_disclaimer">Status \"WIPE REQUESTED\" means only that the public Android API call returned without throwing a refusal. It does NOT confirm that the reset completed or that storage media were sanitized. The one-time consent has been consumed and will not be retried automatically.</string>
+    <string name="outcome_uncertain_storage_warning">WARNING: Storage state during consent consumption was uncertain. Clear app data in Android Settings before reopening Red Button.</string>
+    <string name="btn_return_to_inspection">Return to Readiness Inspection (Disarmed)</string>
+
+    <!-- Last Attempt Report Section -->
+    <string name="section_last_attempt">Last Local Attempt Report</string>
+    <string name="last_attempt_none">No attempt recorded yet.</string>
+
+    <!-- Diagnostics Export / Copy Section -->
+    <string name="section_diagnostics">Technical Diagnostics (Offline)</string>
+    <string name="diagnostics_desc">Generate or copy a privacy-safe technical summary (device family, API level, DPM role, readiness, and last attempt code) for IT auditing or issue reporting. Contains no personal data, IMEI, or serial numbers.</string>
+    <string name="btn_copy_diagnostics">Copy Diagnostic Report to Clipboard</string>
+    <string name="btn_show_diagnostics">Show Diagnostic Report Preview</string>
+    <string name="btn_hide_diagnostics">Hide Diagnostic Report Preview</string>
+    <string name="diagnostics_copied_confirmation">Diagnostic report copied to clipboard.</string>
+
+    <!-- Manual Theft Readiness Checklist (Section 6) -->
+    <string name="section_manual_checklist">Manual Readiness Checklist (Ephemeral Helper)</string>
+    <string name="manual_checklist_disclaimer">This checklist is solely a temporary manual reminder for you. Red Button does NOT read, verify, save, or use these items as a condition for reset.</string>
+    <string name="checklist_item_1">Strong screen lock credential configured (long PIN / password) and short auto-lock timeout set</string>
+    <string name="checklist_item_2">Quick Settings / USB data / power menu restricted on locked screen in Android settings</string>
+    <string name="checklist_item_3">Sensitive notification content hidden on lock screen</string>
+    <string name="checklist_item_4">SIM card PIN enabled or eSIM profile management protected</string>
+    <string name="checklist_item_5">Critical data backed up offline before arming REAL MODE</string>
+</resources>
